@@ -1,3 +1,6 @@
+> Guarda el estado del segment tree después de cada actualización para permitir hacer consultas sobre estados pasados.
+> Consultas y actualizaciones en O(logn), ocupa O(nlogn) en memoria.
+
 typedef int T; 
 const T neutro = 1e9;
 
@@ -62,8 +65,7 @@ struct segtree {
     }
 };
 
-> Guarda el estado del segment tree después de cada actualización para permitir hacer consultas sobre estados pasados.
-> Consultas y actualizaciones en O(logn), ocupa O(nlogn) en memoria.
+> Versión con lazy creation
 
 struct node {
     node *left, *right;
