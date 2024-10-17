@@ -1,142 +1,179 @@
 mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
 uniform_int_distribution<ll> rnd(0, LLONG_MAX);
+ 
+typedef struct item* pitem;
+typedef ll T;
+ 
+const T neutro = 0;
+ 
+/* Operaciones en O(log N)
+   Permite actualizaciones y querys en rangos
+*/
+struct item {
+	pitem left, right;
+	pitem father;
+	ll pri;		// Prioridad random del nodo
+	int cnt;	// Cantidad de nodos en el subárbol 
+	T value; 	// Valor del nodo
+	T sum;		// Valor de la función que se desea consultar del subárbol. Ej: sumas, max, min...
+	bool rev;	// Flag para indicar si el subárbol debe ser revertido
+	T lazy;		
+ 
+	item(T _value) {
+		left = right = father = 0;
+		value = _value;
+		sum = _value;
+		pri = rnd(rng);
+		cnt = 1;
+		lazy = 0;
+		rev = false;
+	}	
 
-template <typename T>
-struct Treap {
-    
-    T unite(T left, T mid, T right) {
-        return left + mid + right;
-    }
-    
-    struct Node {
-        T value, sbt_value, lazy;
-        ll priority; int sbt_size;
-        Node *left, *right;
-        bool is_rever;
-    
-        Node(T v, T neutro) : value(v), left(nullptr), right(nullptr) {
-            priority = rnd(rng);
-            sbt_value = value;
-            lazy = neutro;
-            is_rever = false;
-            sbt_size = 1;
-        }
-    };
-    
-    Node *root;
-    T neutro;
-    
-    Treap() : root(nullptr), neutro(0) {}
-    
-    int size(Node *node) {
-        return (node != nullptr) ? node->sbt_size : 0;
-    }
-    
-    void propagate(Node *node) {
-        if (node == nullptr) return;
-        if (node->is_rever) {
-            swap(node->left, node->right);
-            if (node->left != nullptr) {
-                node->left->is_rever ^= true;
-            } 
-            if (node->right != nullptr) {
-                node->right->is_rever ^= true;
-            } 
-            node->is_rever = false;
-        }
-        if (node->lazy == neutro) return;
-        node->value = node->lazy;
-        /* Si la actualización depende de los hijos, usar el método update para facilitar el proceso */
-        node->sbt_value = node->lazy * node->sbt_size;
-        if (node->left != nullptr) {
-            node->left->lazy = node->lazy;
-        }  
-        if (node->right != nullptr) {
-            node->right->lazy = node->lazy;
-        }  
-        node->lazy = neutro;
-    }
-    
-    void update(Node *node) {
-        if (node == nullptr) return;
-        int lf_sz = (node->left != nullptr) ? node->left->sbt_size : 0;
-        int rg_sz = (node->right != nullptr) ? node->right->sbt_size : 0;
-        node->sbt_size = lf_sz + rg_sz + 1;
-        T lf_v = (node->left != nullptr) ? node->left->sbt_value : neutro;
-        T rg_v = (node->right != nullptr) ? node->right->sbt_value : neutro;
-        node->sbt_value = unite(lf_v, node->value, rg_v); 
-    }
-    
-    array<Node*, 2> split(Node *node, int cnt_left) {
-        if (node == nullptr) return {nullptr, nullptr};
-        propagate(node);
-        if (cnt_left <= size(node->left)) {
-            auto lf_ans = split(node->left, cnt_left);
-            node->left = lf_ans[1];
-            update(node);
-            return {lf_ans[0], node};
-        }
-        else {
-            cnt_left = cnt_left - size(node->left) - 1;
-            auto rg_ans = split(node->right, cnt_left);
-            node->right = rg_ans[0];
-            update(node);
-            return {node, rg_ans[1]};
-        }
-    }
-    
-    Node* merge(Node *lf, Node *rg) {
-        if (lf == nullptr) return rg;
-        if (rg == nullptr) return lf;
-        propagate(lf);
-        propagate(rg);
-        if (lf->priority < rg->priority) {
-            lf->right = merge(lf->right, rg);
-            update(lf);
-            return lf;
-        }
-        else {
-            rg->left = merge(lf, rg->left);
-            update(rg);
-            return rg;
-        }
-    }
-    
-    void push(T value) {
-        Node *node = new Node(value, neutro);
-        root = merge(root, node);
-    }
-    
-    void inorder() { inorder(root); }
-    
-    void inorder(Node *node) {
-        if (node == nullptr) return;
-        propagate(node);
-        inorder(node->left);
-        cout << node->value << " " << node->sbt_value << " " << node->priority << endl;
-        inorder(node->right);
-    }
-    
-    /*
-        Rango inclusive [l, r] indexado de 0
-        cuts[0] = Subarbol con nodos [0, l - 1]
-        cuts[1] = Subarbol con nodos [l, r]
-        cuts[2] = Subarbol con nodos [r + 1, n - 1]
-    */
-    void upd(int l, int r, T value) {
-        auto lf_cut = split(root, l);
-        auto rg_cut = split(lf_cut[1], r - l + 1);
-        array<Node*, 3> cuts = {lf_cut[0], rg_cut[0], rg_cut[1]};
-        cuts[1]->lazy = value;
-        root = merge(cuts[0], merge(cuts[1], cuts[2]));
-    }
-    
-    T query(int l, int r) {
-        auto lf_cut = split(root, l);
-        auto rg_cut = split(lf_cut[1], r - l + 1);
-        array<Node*, 3> cuts = {lf_cut[0], rg_cut[0], rg_cut[1]};
-        T ans_query = cuts[1]->sbt_value;
-        root = merge(cuts[0], merge(cuts[1], cuts[2]));
-        return ans_query;
-    }
 };
+ 
+int cnt(pitem t)  { return !t ? 0 : t->cnt; }
+T operation(pitem t)  { return !t ? neutro : t->sum; }
+T value(pitem t)  { return !t ? neutro : t->value; }
+
+void unite(pitem t) { 
+	t->sum = value(t) + operation(t->left) + operation(t->right);
+}
+
+/* Actualizar la cantidad de nodos del árbol T */
+void update_cnt(pitem t) {
+	if(!t) return;
+	unite(t);
+	t->cnt = cnt(t->left) + cnt(t->right) + 1;
+}
+ 
+/* Actualizar los valores pendientes y push al tag lazy a sus hijos */
+void propagate(pitem t) {
+	if(!t) return;
+	if(t->rev) {
+		swap(t->left, t->right);
+		if(t->left) t->left->rev ^= true;
+		if(t->right) t->right->rev ^= true;
+		t->rev = false;
+	}
+	if(t->lazy) {
+		if(t->left) t->left->lazy += t->lazy;
+		if(t->right) t->right->lazy += t->lazy;
+		t->value += t->lazy;
+		t->lazy = 0;
+	}
+	unite(t);
+}
+ 
+ 
+/* En L quedan los primeros k elementos y en R los restantes */
+void split(pitem t, pitem &L, pitem &R, int k, int add = 0) { 
+	if(!t) {
+		L = R = 0;
+		return;
+	}
+	propagate(t);
+	int cur_key = add + cnt(t->left); // Key implicita actual
+	if(k <= cur_key) {
+		split(t->left, L, t->left, k, add);
+		R = t;
+		if(L) {
+			L->father = 0;
+		}
+		if(t->left) {
+			t->left->father = t;
+		}
+	}
+	else {
+		split(t->right, t->right, R, k, add + cnt(t->left) + 1);
+		L = t;
+		if(R) { 
+			R->father = 0;
+		}
+		if(t->right) {
+			t->right->father = t;
+		}
+	}
+	update_cnt(t);
+}
+ 
+/* Une el treap L y R en el treap t = LR*/
+void merge(pitem &t, pitem L, pitem R) {
+	propagate(L);
+	propagate(R);
+	if(!L) {
+		t = R;
+	}
+	else if(!R) {
+		t = L;
+	}
+	else if(L->pri > R->pri) {
+		merge(L->right, L->right, R);
+		t = L;
+		L->right->father = L;
+	}
+	else {
+		merge(R->left, L, R->left);
+		t = R;
+		R->left->father = R;
+	}
+	update_cnt(t);
+}
+ 
+void push_all(pitem t){
+	if(t->father) push_all(t->father);
+	propagate(t);
+} 
+
+/* Obtiene la raiz y la posición del nodo t */
+pitem root(pitem t, int& pos){ 
+	push_all(t);
+	pos = cnt(t->left);
+	while(t->father){
+		pitem f = t->father;
+		if(t == f->right) pos += cnt(f->left) + 1;
+		t = f;
+	}
+	return t;
+}
+
+/* Imprime los valores del treap */
+void inorder(pitem t) {
+	if(!t) return;
+	propagate(t);
+	inorder(t -> left);
+	cout <<  (t -> value) << " ";
+	inorder(t -> right);
+}
+
+/* Query [l, r) indexado desde 0 */
+T query(pitem t, int l, int r) {
+	T ans = 0;
+	pitem range = 0, prefix = 0, sufix = 0;
+	split(t, range, sufix, r);
+	split(range, prefix, range, l);
+	ans = operation(range);
+	merge(t, prefix, range);
+	merge(t, t, sufix);
+	return ans;
+}
+ 
+/* Update [l, r) indexado desde 0 */
+void update(pitem t, int l, int r, int add) {
+	pitem range = 0, prefix = 0, sufix = 0;
+	split(t, range, sufix, r);
+	split(range, prefix, range, l);
+	range -> lazy = add;
+	merge(t, prefix, range);
+	merge(t, t, sufix);
+}
+ 
+/* Reverse [l, r) indexado desde 0 */
+void reverse(pitem t, int l, int r) {
+	pitem range = 0, prefix = 0, sufix = 0;
+	split(t, range, sufix, r);
+	split(range, prefix, range, l);
+	range -> rev ^= true;
+	merge(t, prefix, range);
+	merge(t, t, sufix);
+}
+ 
